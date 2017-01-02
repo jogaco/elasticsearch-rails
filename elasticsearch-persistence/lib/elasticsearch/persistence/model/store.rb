@@ -53,8 +53,10 @@ module Elasticsearch
               options.update index: self._index if self._index
               options.update type:  self._type  if self._type
 
-              self[:updated_at] = Time.now.utc
-
+              unless options.delete(:touch) == false
+                self[:updated_at] = Time.now.utc
+              end
+              
               response = self.class.gateway.save(self, options)
 
               @_id       = response['_id']
