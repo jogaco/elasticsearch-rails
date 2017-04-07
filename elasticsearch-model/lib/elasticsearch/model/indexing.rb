@@ -65,8 +65,8 @@ module Elasticsearch
             end
           end
 
-          # Set the type to `string` by default
-          @mapping[name][:type] ||= 'string'
+          # Set the type to `text` by default
+          @mapping[name][:type] ||= 'text'
 
           self
         end
@@ -220,15 +220,19 @@ module Elasticsearch
         #     Article.__elasticsearch__.create_index! index: 'my-index'
         #
         def create_index!(options={})
-          target_index = options.delete(:index) || self.index_name
+          options = options.clone
+
+          target_index = options.delete(:index)    || self.index_name
+          settings     = options.delete(:settings) || self.settings.to_hash
+          mappings     = options.delete(:mappings) || self.mappings.to_hash
 
           delete_index!(options.merge index: target_index) if options[:force]
 
           unless index_exists?(index: target_index)
             self.client.indices.create index: target_index,
                                        body: {
-                                         settings: self.settings.to_hash,
-                                         mappings: self.mappings.to_hash }
+                                         settings: settings,
+                                         mappings: mappings }
           end
         end
 

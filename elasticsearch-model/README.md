@@ -290,7 +290,7 @@ response.page(2).results
 response.page(2).records
 ```
 
-In a Rails controller, use the the `params[:page]` parameter to paginate through results:
+In a Rails controller, use the `params[:page]` parameter to paginate through results:
 
 ```ruby
 @articles = Article.search(params[:q]).page(params[:page]).records
@@ -303,7 +303,7 @@ In a Rails controller, use the the `params[:page]` parameter to paginate through
 To initialize and include the Kaminari pagination support manually:
 
 ```ruby
-Kaminari::Hooks.init
+Kaminari::Hooks.init if defined?(Kaminari::Hooks)
 Elasticsearch::Model::Response::Response.__send__ :include, Elasticsearch::Model::Response::Pagination::Kaminari
 ```
 
@@ -364,6 +364,10 @@ response.results.first.title
 
 For proper search engine function, it's often necessary to configure the index properly.
 The `Elasticsearch::Model` integration provides class methods to set up index settings and mappings.
+
+**NOTE**: Elasticsearch will automatically create an index when a document is indexed,
+          with default settings and mappings. Create the index in advance with the `create_index!`
+          method, so your index configuration is respected.
 
 ```ruby
 class Article

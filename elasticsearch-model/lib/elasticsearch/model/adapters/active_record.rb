@@ -26,14 +26,17 @@ module Elasticsearch
             # by redefining `to_a`, unless the user has called `order()`
             #
             sql_records.instance_exec(response.response['hits']['hits']) do |hits|
-              define_singleton_method :to_a do
+              ar_records_method_name = :to_a
+              ar_records_method_name = :records if defined?(::ActiveRecord) && ::ActiveRecord::VERSION::MAJOR >= 5
+
+              define_singleton_method(ar_records_method_name) do
                 if defined?(::ActiveRecord) && ::ActiveRecord::VERSION::MAJOR >= 4
                   self.load
                 else
                   self.__send__(:exec_queries)
                 end
                 @records.sort_by { |record| hits.index { |hit| hit['_id'].to_s == record.id.to_s } }
-              end
+              end if self
             end
 
             sql_records
@@ -42,7 +45,7 @@ module Elasticsearch
           # Prevent clash with `ActiveSupport::Dependencies::Loadable`
           #
           def load
-            records.load
+            records.__send__(:load)
           end
 
           # Intercept call to the `order` method, so we can ignore the order from Elasticsearch

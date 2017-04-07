@@ -18,17 +18,16 @@ class Article < ActiveRecord::Base
   include Elasticsearch::Model::Callbacks
 
   mapping do
-    indexes :title
-    indexes :title_suggest, type: 'completion', payloads: true
+    indexes :title, type: 'text' do
+      indexes :suggest, type: 'completion'
+    end
+    indexes :url, type: 'keyword'
   end
 
   def as_indexed_json(options={})
     as_json.merge \
-    title_suggest: {
-      input:  title,
-      output: title,
-      payload: { url: "/articles/#{id}" }
-    }
+    title_suggest: { input:  title },
+    url: "/articles/#{id}"
   end
 end
 
@@ -58,12 +57,28 @@ response_2 = Article.__elasticsearch__.client.suggest \
   body: {
     articles: {
       text: 'foo',
-      completion: { field: 'title_suggest', size: 25 }
+      completion: { field: 'title.suggest' }
     }
   };
 
 puts "Article suggest:".ansi(:bold),
-     response_2['articles'].first['options'].map { |d| "#{d['text']} -> #{d['payload']['url']}" }.
+     response_2['articles'].first['options'].map { |d| "#{d['text']} -> #{d['_source']['url']}" }.
      inspect.ansi(:bold, :green)
+
+response_3 = Article.search \
+  query: {
+    match: { title: 'foo' }
+  },
+  suggest: {
+    articles: {
+      text: 'foo',
+      completion: { field: 'title.suggest' }
+    }
+  },
+  _source: ['title', 'url']
+
+puts "Article search with suggest:".ansi(:bold),
+     response_3.response['suggest']['articles'].first['options'].map { |d| "#{d['text']} -> #{d['_source']['url']}" }.
+     inspect.ansi(:bold, :blue)
 
 require 'pry'; binding.pry;

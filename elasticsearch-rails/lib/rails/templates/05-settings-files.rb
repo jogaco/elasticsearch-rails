@@ -2,16 +2,16 @@
 
 # (See: 01-basic.rb, 02-pretty.rb, 03-expert.rb, 04-dsl.rb)
 
-append_to_file 'README.rdoc', <<-README
+append_to_file 'README.md', <<-README
 
-== [5] Settings Files
+## [5] Settings Files
 
 The `settings-files` template refactors the `Searchable` module to load the index settings
 from an external file.
 
 README
 
-git add:    "README.rdoc"
+git add:    "README.md"
 git commit: "-m '[05] Updated the application README'"
 
 # ----- Setup the Searchable module to load settings from config/elasticsearch/articles_settings.json
@@ -31,12 +31,6 @@ get 'https://raw.githubusercontent.com/elastic/elasticsearch-rails/master/elasti
 
 git add:    "config/elasticsearch/articles_settings.json"
 git commit: "-m 'Create the articles settings file'"
-
-# ----- Temporarily set local repo for testing ----------------------------------------------------
-
-gsub_file "Gemfile",
-    %r{gem 'elasticsearch-model', git: 'git://github.com/elasticsearch/elasticsearch-rails.git'},
-    "gem 'elasticsearch-model', path: File.expand_path('../../../../../../elasticsearch-model', __FILE__)"
 
 # ----- Run bundle install ------------------------------------------------------------------------
 

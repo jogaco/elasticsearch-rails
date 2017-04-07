@@ -3,9 +3,36 @@ require 'active_record'
 
 puts "ActiveRecord #{ActiveRecord::VERSION::STRING}", '-'*80
 
+# Needed for ActiveRecord 3.x ?
+ActiveRecord::Base.establish_connection( :adapter => 'sqlite3', :database => ":memory:" ) unless ActiveRecord::Base.connected?
+
+::ActiveRecord::Base.raise_in_transactional_callbacks = true if ::ActiveRecord::Base.respond_to?(:raise_in_transactional_callbacks) && ::ActiveRecord::VERSION::MAJOR.to_s < '5'
+
 module Elasticsearch
   module Model
     class ActiveRecordBasicIntegrationTest < Elasticsearch::Test::IntegrationTestCase
+
+      class ::Article < ActiveRecord::Base
+        include Elasticsearch::Model
+        include Elasticsearch::Model::Callbacks
+
+        settings index: { number_of_shards: 1, number_of_replicas: 0 } do
+          mapping do
+            indexes :title,         type: 'text', analyzer: 'snowball'
+            indexes :body,          type: 'text'
+            indexes :clicks,        type: 'integer'
+            indexes :created_at,    type: 'date'
+          end
+        end
+
+        def as_indexed_json(options = {})
+          attributes
+            .symbolize_keys
+            .slice(:title, :body, :clicks, :created_at)
+            .merge(suggest_title: title)
+        end
+      end
+
       context "ActiveRecord basic integration" do
         setup do
           ActiveRecord::Schema.define(:version => 1) do
@@ -14,27 +41,6 @@ module Elasticsearch
               t.string   :body
               t.integer  :clicks, :default => 0
               t.datetime :created_at, :default => 'NOW()'
-            end
-          end
-
-          class ::Article < ActiveRecord::Base
-            include Elasticsearch::Model
-            include Elasticsearch::Model::Callbacks
-
-            settings index: { number_of_shards: 1, number_of_replicas: 0 } do
-              mapping do
-                indexes :title,         type: 'string', analyzer: 'snowball'
-                indexes :body,          type: 'string'
-                indexes :clicks,        type: 'integer'
-                indexes :created_at,    type: 'date'
-              end
-            end
-
-            def as_indexed_json(options = {})
-              attributes
-                .symbolize_keys
-                .slice(:title, :body, :clicks, :created_at)
-                .merge(suggest_title: title)
             end
           end
 
@@ -100,7 +106,10 @@ module Elasticsearch
         end
 
         should "preserve the search results order for records" do
-          response = Article.search('title:code')
+          response = Article.search query: { match: { title: 'code' }}, sort: { clicks: :desc }
+
+          assert_equal response.records[0].clicks, 3
+          assert_equal response.records[1].clicks, 2
 
           response.records.each_with_hit do |r, h|
             assert_equal h._id, r.id.to_s
